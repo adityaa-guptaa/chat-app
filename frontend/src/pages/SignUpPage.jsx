@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -16,6 +17,8 @@ const SignUpPage = () => {
 
   const { signup, isSigningUp } = useAuthStore();
 
+  const navigate = useNavigate();
+
   const validateForm = () => {
     if (!formData.fullName.trim()) return toast.error("Full name is required");
     if (!formData.email.trim()) return toast.error("Email is required");
@@ -31,7 +34,11 @@ const SignUpPage = () => {
 
     const success = validateForm();
 
-    if (success === true) signup(formData);
+    if (success === true) {
+      signup(formData).then(() => {
+        navigate("/interests");
+      });
+    }
   };
 
   return (
