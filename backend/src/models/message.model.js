@@ -23,25 +23,19 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
-    // End-to-End Encryption fields
+    // ✅ Simplified encryption fields for Caesar cipher
     isEncrypted: {
       type: Boolean,
-      default: false,
+      default: true, // ✅ All messages encrypted by default
     },
-    encryptedData: {
-      encryptedMessage: {
-        encryptedData: String,
-        iv: String,
-        authTag: String,
-        algorithm: String,
-      },
-      encryptedKey: String, // RSA-encrypted AES key
-      keyId: String,        // Recipient's key ID
-      timestamp: String,
-      algorithm: {
-        type: String,
-        default: 'hybrid-rsa-aes'
-      }
+    encryptionMethod: {
+      type: String,
+      default: 'caesar',
+      enum: ['caesar', 'none']
+    },
+    encryptionKey: {
+      type: Number,
+      default: 4 // ✅ Fixed key
     },
     edited: {
       type: Boolean,

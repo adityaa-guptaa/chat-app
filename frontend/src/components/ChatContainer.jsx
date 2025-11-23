@@ -215,18 +215,21 @@ useEffect(() => {
   return () => unsubscribeFromMessages();
 }, [subscribeToMessages, unsubscribeFromMessages]);
 
-  // Log socket connection status
+  // ✅ Make sure socket is properly connected
   useEffect(() => {
     if (!socket) {
-      console.log("Socket not available yet");
+      console.log("⚠️ Socket not available yet");
       return;
     }
 
+    console.log("✅ Socket connected:", socket.id);
+
     socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
+      console.log("🔌 Socket connected:", socket.id);
     });
+    
     socket.on("disconnect", () => {
-      console.log("Socket disconnected");
+      console.log("🔌 Socket disconnected");
     });
 
     return () => {
@@ -646,7 +649,7 @@ useEffect(() => {
                           <span className="text-xs opacity-70 ml-1 font-medium">(edited)</span>
                         )}
                         
-                        {/* Remove or comment out the encryption indicator - messages are auto-decrypted by backend */}
+                        {/* Remove or comment out the encryption indicator - messages are auto-decrypts by backend */}
                         {/* 
                         {message.isEncrypted && (
                           <div className="flex items-center gap-1 mt-1">
@@ -826,9 +829,10 @@ useEffect(() => {
                     sentiment,
                     replyTo: replyToId,
                     selectedModel,
-                    encrypt: true  // ✅ Always encrypt
+                    encrypt: true
                   };
-                  const { data: savedMessage } = await axios.post(`/api/messages/send`, payload);
+                  await axios.post(`/api/messages/send`, payload);
+                  // ❌ REMOVED: Don't manually add to messages - socket will handle it
                 } else {
                   const payload = { 
                     text,
@@ -836,23 +840,17 @@ useEffect(() => {
                     sentiment,
                     replyTo: replyToId,
                     selectedModel,
-                    encrypt: true  // ✅ Always encrypt
+                    encrypt: true
                   };
-                  const { data: savedMessage } = await axios.post(`/api/messages/send/${selectedUser._id}`, payload);
-                  if (socket?.connected) {
-                    socket.emit("newMessage", {
-                      newMessage: savedMessage,
-                      receiverId: selectedUser._id
-                    });
-                  }
-                  useChatStore.setState((state) => ({
-                    messages: [...state.messages, savedMessage]
-                  }));
+                  await axios.post(`/api/messages/send/${selectedUser._id}`, payload);
+                  // ❌ REMOVED: Don't emit socket event - backend already does this
+                  // ❌ REMOVED: Don't manually update messages - socket listener will handle it
                 }
                 
                 setReplyingTo(null);
               } catch (err) {
                 console.error("Failed to send message:", err);
+                toast.error("Failed to send message");
               }
             }}
           />

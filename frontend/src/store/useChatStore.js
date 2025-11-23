@@ -60,95 +60,55 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
-    const authUser = useAuthStore.getState().authUser;
-    if (!socket?.connected || !authUser) {
-      console.warn("Socket not connected or user not authenticated in subscribeToMessages");
+    if (!socket) {
+      console.log("⚠️ Socket not available for subscription");
       return;
     }
 
-    console.log("Subscribing to messages for:", selectedUser, "Current user:", authUser._id);
+    console.log("👂 Subscribing to messages for:", selectedUser);
 
+    // ✅ Listen for new messages
     socket.on("newMessage", (newMessage) => {
-      console.log("Received newMessage event:", newMessage);
-      console.log("Current conversation - selectedUser:", selectedUser._id, "authUser:", authUser._id);
-      console.log("Message details - senderId:", newMessage.senderId, "receiverId:", newMessage.receiverId);
+      console.log("📨 New message received via socket:", newMessage);
       
-      // Convert ObjectIds to strings for comparison
-      const messageSenderId = newMessage.senderId?._id?.toString() || newMessage.senderId?.toString();
-      const messageReceiverId = newMessage.receiverId?.toString();
-      const selectedUserId = selectedUser._id?.toString();
-      const authUserId = authUser._id?.toString();
+      const { selectedUser: currentSelectedUser } = get();
+      const currentUserId = useAuthStore.getState().authUser?._id;
       
-      // For direct chat: check if message is between current user and selected user
-      // For group chat: check if message is for current group
-      const isRelevantMessage = selectedUser.isGroup
-        ? newMessage.groupId === selectedUser.groupId
-        : (
-          (messageSenderId === selectedUserId && messageReceiverId === authUserId) ||
-          (messageSenderId === authUserId && messageReceiverId === selectedUserId)
-        );
+      // ✅ Check if message belongs to current conversation
+      const isRelevant = 
+        (currentSelectedUser?.groupId && newMessage.groupId === currentSelectedUser.groupId) ||
+        (!currentSelectedUser?.groupId && 
+         ((newMessage.senderId._id === currentSelectedUser?._id && newMessage.receiverId._id === currentUserId) ||
+          (newMessage.senderId._id === currentUserId && newMessage.receiverId._id === currentSelectedUser?._id)));
 
-      console.log("Comparison details:", {
-        messageSenderId,
-        messageReceiverId,
-        selectedUserId,
-        authUserId,
-        isRelevantMessage
-      });
-
-      if (isRelevantMessage) {
-        console.log("✅ Adding message to store:", newMessage);
+      if (isRelevant) {
+        console.log("✅ Message is relevant, adding to state");
         
-        // Check if message already exists to prevent duplicates
-        const currentMessages = get().messages;
-        const messageExists = currentMessages.some(msg => msg._id === newMessage._id);
-        
-        if (!messageExists) {
-          set({
-            messages: [...currentMessages, newMessage],
-          });
-          console.log("✅ Message added successfully");
-        } else {
-          console.log("⚠️ Message already exists, skipping duplicate");
-        }
-      } else {
-        console.log("❌ Message not relevant for current conversation", {
-          selectedUser: selectedUserId,
-          authUser: authUserId,
-          messageSender: messageSenderId,
-          messageReceiver: messageReceiverId,
-          messageGroupId: newMessage.groupId,
-          isGroup: selectedUser.isGroup
+        // ✅ Check for duplicates before adding
+        set((state) => {
+          const messageExists = state.messages.some(msg => msg._id === newMessage._id);
+          if (messageExists) {
+            console.log("⚠️ Duplicate message detected, skipping");
+            return state;
+          }
+          
+          return {
+            messages: [...state.messages, newMessage]
+          };
         });
+      } else {
+        console.log("⚠️ Message not relevant to current conversation");
       }
     });
 
-    socket.on("newGroupMessage", (newMessage) => {
-      console.log("Received newGroupMessage event:", newMessage);
-      
-      if (selectedUser.isGroup && newMessage.groupId === selectedUser.groupId) {
-        // Check if message already exists to prevent duplicates
-        const currentMessages = get().messages;
-        const messageExists = currentMessages.some(msg => msg._id === newMessage._id);
-        
-        if (!messageExists) {
-          console.log("Adding group message to store:", newMessage);
-          set({
-            messages: [...currentMessages, newMessage],
-          });
-        } else {
-          console.log("Group message already exists, skipping:", newMessage._id);
-        }
-      }
-    });
+    console.log("✅ Socket message listener registered");
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     if (socket) {
+      console.log("🔇 Unsubscribing from messages");
       socket.off("newMessage");
-      socket.off("newGroupMessage");
-      console.log("Unsubscribed from messages");
     }
   },
 
